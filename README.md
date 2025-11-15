@@ -51,7 +51,7 @@ sudo apt install libnotify-bin
 Copy file `laptop-mode-toggle` ke:
 
 ```
-/usr/local/bin/laptop-mode-toggle
+sudo cp laptop-mode-toggle /usr/local/bin/laptop-mode-toggle
 ```
 
 Lalu beri permission agar bisa dieksekusi:
