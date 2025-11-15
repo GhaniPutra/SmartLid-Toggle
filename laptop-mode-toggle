@@ -1,0 +1,47 @@
+#!/bin/bash
+
+STATE_FILE="/tmp/laptop_mode_state"
+INHIBIT_PID_FILE="/tmp/laptop_inhibit.pid"
+
+if [ ! -f "$STATE_FILE" ]; then
+    echo "normal" > "$STATE_FILE"
+fi
+
+CURRENT_MODE=$(cat "$STATE_FILE")
+
+if [ "$CURRENT_MODE" = "normal" ]; then
+    # MODE: TUTUP TETAP JALAN
+    
+    # Kill existing inhibitor dulu (kalau ada)
+    if [ -f "$INHIBIT_PID_FILE" ]; then
+        OLD_PID=$(cat "$INHIBIT_PID_FILE")
+        kill $OLD_PID 2>/dev/null
+        pkill -f "systemd-inhibit.*LaptopModeToggle" 2>/dev/null
+    fi
+    
+    # Start inhibitor baru
+    systemd-inhibit --what=handle-lid-switch \
+                    --who="LaptopModeToggle" \
+                    --why="Keep laptop running when lid closed" \
+                    sleep infinity &
+    
+    echo $! > "$INHIBIT_PID_FILE"
+    
+    echo "closed" > "$STATE_FILE"
+    notify-send "Laptop Mode: Hemat" "Tutup tetap jalan ✓" -i battery-full -t 3000
+    
+else
+    # MODE: NORMAL (Suspend saat tutup)
+    
+    # KILL semua inhibitor process
+    if [ -f "$INHIBIT_PID_FILE" ]; then
+        PID=$(cat "$INHIBIT_PID_FILE")
+        kill -9 $PID 2>/dev/null
+        rm "$INHIBIT_PID_FILE"
+    fi
+    
+    pkill -9 -f "systemd-inhibit.*LaptopModeToggle" 2>/dev/null
+    
+    echo "normal" > "$STATE_FILE"
+    notify-send "Laptop Mode: Normal" "Suspend saat tutup ✓" -i computer -t 3000
+fi
