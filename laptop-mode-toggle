@@ -3,6 +3,7 @@
 STATE_FILE="/tmp/laptop_mode_state"
 INHIBIT_PID_FILE="/tmp/laptop_inhibit.pid"
 
+# Initialize state file if not present
 if [ ! -f "$STATE_FILE" ]; then
     echo "normal" > "$STATE_FILE"
 fi
@@ -10,38 +11,38 @@ fi
 CURRENT_MODE=$(cat "$STATE_FILE")
 
 if [ "$CURRENT_MODE" = "normal" ]; then
-    # MODE: TUTUP TETAP JALAN
-    
-    # Kill existing inhibitor dulu (kalau ada)
+    # MODE: KEEP RUNNING WHEN LID CLOSED
+
+    # Kill previous inhibitor if exists
     if [ -f "$INHIBIT_PID_FILE" ]; then
         OLD_PID=$(cat "$INHIBIT_PID_FILE")
         kill $OLD_PID 2>/dev/null
         pkill -f "systemd-inhibit.*LaptopModeToggle" 2>/dev/null
     fi
-    
-    # Start inhibitor baru
+
+    # Start new inhibitor
     systemd-inhibit --what=handle-lid-switch \
                     --who="LaptopModeToggle" \
-                    --why="Keep laptop running when lid closed" \
+                    --why="Prevent suspend when lid is closed" \
                     sleep infinity &
-    
+
     echo $! > "$INHIBIT_PID_FILE"
-    
+
     echo "closed" > "$STATE_FILE"
-    notify-send "Laptop Mode: Hemat" "Tutup tetap jalan ✓" -i battery-full -t 3000
-    
+    notify-send "Laptop Mode: Keep Running" "Lid close will not suspend ✓" -i battery-full -t 3000
+
 else
-    # MODE: NORMAL (Suspend saat tutup)
-    
-    # KILL semua inhibitor process
+    # MODE: NORMAL (Suspend on lid close)
+
+    # Kill inhibitor process
     if [ -f "$INHIBIT_PID_FILE" ]; then
         PID=$(cat "$INHIBIT_PID_FILE")
         kill -9 $PID 2>/dev/null
         rm "$INHIBIT_PID_FILE"
     fi
-    
+
     pkill -9 -f "systemd-inhibit.*LaptopModeToggle" 2>/dev/null
-    
+
     echo "normal" > "$STATE_FILE"
-    notify-send "Laptop Mode: Normal" "Suspend saat tutup ✓" -i computer -t 3000
+    notify-send "Laptop Mode: Normal" "Lid close will suspend ✓" -i computer -t 3000
 fi
